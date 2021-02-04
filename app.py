@@ -838,17 +838,48 @@ def generate_excel(Parameters, drop_duplicates=True):
     output = BytesIO()
     
     with pd.ExcelWriter(output) as writer:
-        # for k in Parameters.keys():# exercise = list(Results_parameters.keys())[0]
-        for k in ['all'] + [x for x in list(Parameters.keys()) if x!='all']:# exercise = list(Results_parameters.keys())[0]
+        for k in Parameters.keys():# exercise = list(Results_parameters.keys())[0]
             if drop_duplicates:
-                Parameters[k].drop_duplicates().sort_index().to_excel(writer, sheet_name=k, index=True)
+                Parameters[k].drop_duplicates().to_excel(writer, sheet_name=k, index=True)
             else:
-                Parameters[k].sort_index().to_excel(writer, sheet_name=k, index=True)
-            try:
-                writer.sheets[k].set_column('A:A', 30)
-                writer.sheets[k].set_column('B:Z', 18)
-            except:
-                pass
+                Parameters[k].to_excel(writer, sheet_name=k, index=True)
+            # workbook = writer.book
+            worksheet = writer.sheets[k]
+            # fmt_thousendth = workbook.add_format({'num_format': '#.###'})
+            # worksheet.set_column('A:A', 30)
+            # worksheet.set_column('B:Z', 18)
+        # if Options['all_oneLiners']:
+        #     for exercise in oneLiners.keys():# exercise = list(oneLiners.keys())[0]
+        #         for entry_type in oneLiners[exercise].keys():# entry_type = list(oneLiners[exercise].keys())[0]
+        #             if Options['transpose_oneLiner']:
+        #                 oneLiners[exercise][entry_type].set_index('subject').T.to_excel(writer, sheet_name=exercise+'_'+entry_type)
+        #             else:
+        #                 oneLiners[exercise][entry_type].set_index('subject').to_excel(writer, sheet_name=exercise+'_'+entry_type)
+        # else:
+        #     exercise = 'all_exercises'# exercise = list(oneLiners.keys())[0]
+        #     entry_type = 'full'# entry_type = list(oneLiners[exercise].keys())[0]
+        #     if Options['transpose_oneLiner']:
+        #         oneLiners[exercise][entry_type].set_index('subject').T.to_excel(writer, sheet_name=exercise+'_'+entry_type)
+        #     else:
+        #         oneLiners[exercise][entry_type].set_index('subject').to_excel(writer, sheet_name=exercise+'_'+entry_type)
+        # if Options['signals_to_excel']:
+        #     for exercise in Results_signals.keys():# exercise = list(Results_signals.keys())[0]
+        #         for file in Results_signals[exercise].keys():# file = list(Results_signals[exercise].keys())[0]
+        #             for rep in Results_signals[exercise][file].keys():# rep = list(Results_signals[exercise][file].keys())[0]
+        #                 for direction in Results_signals[exercise][file][rep].keys():# direction = list(Results_signals[exercise][file][rep].keys())[0]
+        #                     df = Results_signals[exercise][file][rep][direction]['combined']
+        #                     for k in [x for x in Results_signals[exercise][file][rep][direction].keys() if x!='combined']:# k=[x for x in Results_signals[exercise][file][rep][direction].keys() if x!='combined'][0]
+        #                         df = pd.concat((df, 
+        #                                         pd.DataFrame(
+        #                                             data=Results_signals[exercise][file][rep][direction][k].values,
+        #                                             columns=['_'.join([str(k),c]) for c in Results_signals[exercise][file][rep][direction][k].columns]
+        #                                             )
+        #                                         ),
+        #                                        axis=1)
+        #                     df.to_excel(writer,
+        #                                 # sheet_name='_'.join([exercise.replace('Syncro ',''),file,rep,direction]),
+        #                                 sheet_name='_'.join([exercise.replace(' bilateral',''),file,rep,direction]),
+        #                                 index=False)
         writer.save()
         processed_data = output.getvalue()
         
