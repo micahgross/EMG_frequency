@@ -24,7 +24,9 @@ from plotly.subplots import make_subplots
 from scipy import signal
 from scipy import stats
 from scipy import integrate
-from streamlit.report_thread import get_report_ctx
+# from scipy.signal import periodogram
+# from scipy.integrate import cumtrapz
+# import time
 #%%
 # '''
 # with open(os.path.join(os.getcwd(),'saved_variables','sample_file_bytesIO.txt'), 'rb') as fh:
@@ -37,18 +39,17 @@ from streamlit.report_thread import get_report_ctx
 #     data_so_far = json.load(fp)
 # del fp, fh
 # '''
-
 #%%
 def user_input_options():
     Options = {}
-    Options['show_intermediate_plots'] = st.sidebar.checkbox('show intermediate plots',
+    Options['show_processing_plots'] = st.sidebar.checkbox('show processing plots',
                                                            value=False
                                                            )
     Options['show_final_plots'] = st.sidebar.checkbox('show final plots',
                                                 value=False
                                                 )
     Options['show_table'] = st.sidebar.checkbox('show table',
-                                                value=True
+                                                value=False
                                                 )
     Options['export_style'] = st.sidebar.selectbox('export style', [
         'nexus',
@@ -60,10 +61,6 @@ def user_input_options():
                                                         )
     return Options
 #%%
-@st.cache(suppress_st_warning=True)
-def clear_cache_if(session_id):
-    st.caching.clear_cache()
-
 @st.cache
 def import_raw_EMG(uploaded_file,export_style='nexus'):# uploaded_file=os.path.join(os.getcwd(),'sample_data', 'gooddata_1766_M01.csv') # uploaded_file=os.path.join(os.getcwd(),'sample_data', 'M1.csv')
     if export_style == 'nexus':
@@ -87,8 +84,7 @@ def plot_raw(df_raw, time_raw):
     fig_raw = make_subplots(
         rows=len([c for c in df_raw.columns if 'Frame' not in c]),
         cols=1,
-        shared_xaxes=True,
-        subplot_titles=tuple(['channel: '+c for c in df_raw.columns if 'Frame' not in c]),
+        shared_xaxes=True
         )
     for c,ch in enumerate([c for c in df_raw.columns if 'Frame' not in c]):# c,ch=0,[c for c in df_raw.columns if 'Frame' not in c][0]
         fig_raw.add_trace(
@@ -115,6 +111,9 @@ def plot_raw(df_raw, time_raw):
 @st.cache
 def crop_EMG(df_raw, trial_duration, sfreq, Options):
     n_samples = int(trial_duration*sfreq)
+    # for ch in Options['selected_channels']:# [c for c in df_raw.columns if 'Frame' not in c]:# ch=[c for c in df_raw.columns if 'Frame' not in c][0]
+    #     if ch not in Options['selected_channels']:
+    #         df_raw = df_raw.drop(ch, axis=1)
     if Options['crop_method']=='auto':
         off=[]
         for ch in Options['selected_channels']:# ch = Options['selected_channels'][0]
@@ -136,8 +135,7 @@ def plot_cropped(df_raw, df_crop, Options):
     fig_crop = make_subplots(
         rows=len(Options['selected_channels']),# len([c for c in df_raw.columns if 'Frame' not in c]),
         cols=1,
-        shared_xaxes=True,
-        subplot_titles=tuple(['channel: '+x for x in Options['selected_channels']]),
+        shared_xaxes=True
         )
     for c,ch in enumerate(Options['selected_channels']):# enumerate([c for c in df_raw.columns if 'Frame' not in c]):# c,ch=0,[c for c in df_raw.columns if 'Frame' not in c][0]
         fig_crop.add_trace(
@@ -199,6 +197,8 @@ def filter_emg(df_crop, sfreq, Options, rectify=True, **kwargs):# [,sfreq,plots]
     order = kwargs.get('filter_order',3)# order = 3
     moving_avg_window = kwargs.get('moving_avg_window', 0.05)# moving_avg_window = 0.05
     if 'band_pass' in kwargs:
+        # high_band = band_pass[0]/(sfreq/2)
+        # low_band = band_pass[1]/(sfreq/2)
         band_pass = [x/(sfreq/2) for x in band_pass]
     if 'low_pass' in kwargs:
         low_pass = low_pass/sfreq
@@ -215,6 +215,7 @@ def filter_emg(df_crop, sfreq, Options, rectify=True, **kwargs):# [,sfreq,plots]
         # normalise cut-off frequencies to sampling frequency
         if 'band_pass' in kwargs:
             # create band-pass filter for EMG
+            # b1, a1 = signal.butter(order, [high_band,low_band], btype='bandpass')
             b1, a1 = signal.butter(order, band_pass, btype='bandpass')
             # process EMG signal: filter EMG
             emg_sig = signal.filtfilt(b1, a1, emg_sig)
@@ -244,12 +245,11 @@ def plot_filter(df_raw, df_crop, df_filter, Options):
     time_raw = pd.Series(df_raw.index/sfreq)
     time_crop = pd.Series(df_crop.index/sfreq)
     fig_filter = make_subplots(
-        rows=len(Options['selected_channels']),
+        rows=len(Options['selected_channels']),# len([c for c in df_raw.columns if 'Frame' not in c]),
         cols=1,
-        shared_xaxes=True,
-        subplot_titles=tuple(['channel: '+x for x in Options['selected_channels']]),
+        shared_xaxes=True
         )
-    for c,ch in enumerate(Options['selected_channels']):
+    for c,ch in enumerate(Options['selected_channels']):# enumerate([c for c in df_raw.columns if 'Frame' not in c]):# c,ch=0,[c for c in df_raw.columns if 'Frame' not in c][0]
         fig_filter.add_trace(
             go.Scatter(
                 y=df_raw[ch],
@@ -321,7 +321,7 @@ def get_avg_inst_freq(df_filter, sfreq, Options, **kwargs):# [trial_duration,sfr
         muscles=kwargs.get('muscles',None)
         labels=muscles
     else:
-        labels=Options['selected_channels']
+        labels=Options['selected_channels']# [c for c in df_filter.columns if 'Frame' not in c]
 
     fig_aif = make_subplots(
         rows=len(Options['selected_channels']),
@@ -436,6 +436,55 @@ def get_avg_inst_freq(df_filter, sfreq, Options, **kwargs):# [trial_duration,sfr
         aif_parameters.loc[0,'slope_norm_'+ch] = slope_norm
         dFreq_pct = ((t_epoch[ch][-1]*slope_norm + intercept_norm)/(t_epoch[ch][0]*slope_norm + intercept_norm)-1)*100# total percent change in AIF over 'trial_duration'
         aif_parameters.loc[0,'dFreq_pct_'+ch] = dFreq_pct
+    # for c,ch in enumerate(Options['selected_channels']):# c,ch = 0,Options['selected_channels'][0] # c,ch = c+1,Options['selected_channels'][c+1]
+        # fig_aif['layout']['xaxis'+('' if c==0 else str(c+2))]['domain'] = (0.0, 0.4)
+        # fig_aif['layout']['xaxis'+('2' if c==0 else str(c+3))]['domain'] = (0.6, 1.0)
+        # fig_aif['layout'].update(
+        #     annotations=[
+        #         dict(
+        #             ax=2*Options['trial_duration']/3,
+        #             ay=intercept,
+        #             xref='x'+str(c+1),
+        #             yref='y'+str(c+1),
+        #             text='my text 1',
+        #             ),
+        #         dict(
+        #             ax=2*Options['trial_duration']/3,
+        #             ay=100,
+        #             xref='x'+str(c+2),
+        #             yref='y'+str(c+2),
+        #             text='my text 2',
+        #             ),
+        #         ]
+        #     )# fig_aif['layout']['annotations']
+        # fig_aif.update_yaxes(
+        #     title_text='Hz',
+        #     row=c+1,
+        #     col=1)
+        # fig_aif.update_yaxes(
+        #     title_text='%',
+        #     row=c+1,
+        #     col=2)
+    # fig_aif['layout']['annotations'] = [
+    #     dict(
+    #         x=2*Options['trial_duration']/3,
+    #         y=90,
+    #         xref='x1',
+    #         yref='y1',
+    #         text='text here',
+    #         ax=10,
+    #         ay=70,
+    #         )
+    #     ]
+    # fig_aif['layout']['annotations'][0].update(
+    #     x=2*Options['trial_duration']/3,
+    #     y=90,
+    #     # xref='x1',
+    #     # yref='y1',
+    #     text='text here',
+    #     # ax=10,
+    #     # ay=70,
+    #     )
     fig_aif.update_xaxes(
         title_text='time (s)',
         row=c+1,
@@ -838,218 +887,222 @@ def generate_excel(Parameters, drop_duplicates=True):
     output = BytesIO()
     
     with pd.ExcelWriter(output) as writer:
-        # for k in Parameters.keys():# exercise = list(Results_parameters.keys())[0]
-        for k in ['all'] + [x for x in list(Parameters.keys()) if x!='all']:# exercise = list(Results_parameters.keys())[0]
+        for k in Parameters.keys():# exercise = list(Results_parameters.keys())[0]
             if drop_duplicates:
-                Parameters[k].drop_duplicates().sort_index().to_excel(writer, sheet_name=k, index=True)
+                Parameters[k].drop_duplicates().to_excel(writer, sheet_name=k, index=True)
             else:
-                Parameters[k].sort_index().to_excel(writer, sheet_name=k, index=True)
-            # try:
-            #     writer.sheets[k].set_column('A:A', 30)
-            #     writer.sheets[k].set_column('B:Z', 18)
-            # except:
-            #     pass
+                Parameters[k].to_excel(writer, sheet_name=k, index=True)
+            # workbook = writer.book
+            worksheet = writer.sheets[k]
+        #     worksheet.set_column('A:A', 30)
+        #     worksheet.set_column('B:Z', 18)
         writer.save()
         processed_data = output.getvalue()
         
     b64 = base64.b64encode(processed_data)
     writing_excel_container.empty()
     return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="Results.xlsx">Download Results as Excel File</a>' # decode b'abc' => abc
-    # return f'<a href="data:file/txt;base64,{b64}" download="{download_filename}"><input type="button" value="Download"></a>'
-    # return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="Results.xlsx"><input type="button" value="Download"></a>'
+
 #%%
 st.write("""
 
 # EMG frequency analysis
 
 """)
-# st.write(
-#     get_report_ctx()
-#     )
-ctx =  get_report_ctx()
-# st.write(
-#     ctx.session_id
-#     )
-clear_cache_if(ctx.session_id)
 st.sidebar.header('Options')
 Options = user_input_options()
 options_container = st.empty()
-uploaded_files = st.file_uploader("upload export files", accept_multiple_files=True)
-plot_containers = {}
-if uploaded_files is not None:
-    for f_nr,uploaded_file in enumerate(uploaded_files):
-        file_name = uploaded_file.name# file_name = 'M1.csv'
-        plot_containers[file_name] = st.beta_expander('Plots: '+file_name)# st.write('running import_raw_EMG')
-        df_raw, time_raw, sfreq = import_raw_EMG(uploaded_file,
-                                                 export_style=Options['export_style'],
-                                                 )
-        if Options['show_intermediate_plots']:
-            plot_containers[file_name].subheader('raw')
-            plot_containers[file_name].plotly_chart(plot_raw(df_raw, time_raw))
-        duration = time_raw.max()
-        selected_channels = {}
-        if f_nr==0:
-            for c,ch in enumerate([c for c in df_raw.columns if 'Frame' not in c]):
-                selected_channels[ch] = st.sidebar.checkbox(ch,
-                                                            # value=True,
-                                                            value=True if 'Knee' not in ch and c<2 else False,
-                                                            key=ch,
-                                                            )
-            Options['selected_channels'] = [k for k in selected_channels.keys() if selected_channels[k]==True]
-            Options['crop_method'] = st.sidebar.selectbox('crop method', [
-                '',
-                'auto',
-                'manual',
-                ],
-                1,# Options['crop_method'] = 'auto'
-                # 0,
-                )
-        if Options['crop_method'] == 'manual':
-            Options['crop_window'] = [
-                st.sidebar.number_input('crop window on (s)',
-                                        min_value=0.0,
-                                        max_value=time_raw.max()-Options['trial_duration'],
-                                        step=1.0,
-                                        value=0.0,
-                                        ),
-                                      ]
-            Options['crop_window'].append(Options['crop_window'][0] + Options['trial_duration'])
-        if Options['crop_method'] != '' and Options['trial_duration'] <= duration:
-            df_crop, Options['crop_window'] = crop_EMG(df_raw=df_raw,
-                                                       trial_duration=Options['trial_duration'],
-                                                       sfreq=sfreq,
-                                                       Options=Options,
-                                                       )
-            if Options['show_intermediate_plots']:
-                plot_containers[file_name].subheader('processed')
-                # plot_containers[file_name].plotly_chart(plot_cropped(df_raw, df_crop, Options))
-            if f_nr==0:
-                Options['filter_type'] = st.sidebar.selectbox('filter type', [
-                    '',
-                    'low pass',
-                    'high pass',
-                    'band pass',
-                    'moving average',
-                    ],
-                    # 0,
-                    3,# Options['filter_type']='band_pass'
-                    )
-            if Options['filter_type'] != '':
-                if Options['filter_type']=='low pass':
-                    if f_nr==0:
-                        Options['pass_value'] = st.sidebar.number_input('lowpass value',
-                                                                        min_value=1,
-                                                                        max_value=int(sfreq/2-1),
-                                                                        step=50,
-                                                                        value=450,
-                                                                        )
-                    df_filter = filter_emg(df_crop, sfreq, Options,
-                                           rectify=True,
-                                           low_pass=Options['pass_value'],
-                                           )
-                elif Options['filter_type']=='high pass':
-                    if f_nr==0:
-                        Options['pass_value'] = st.sidebar.number_input('highpass value',
-                                                                        min_value=1,
-                                                                        max_value=int(sfreq/2-1),
-                                                                        step=10,
-                                                                        value=10,
-                                                                        )
-                    df_filter = filter_emg(df_crop, sfreq, Options,
-                                           rectify=True,
-                                           high_pass=Options['pass_value'],
-                                           )
-                elif Options['filter_type']=='band pass':
-                    if f_nr==0:
-                        Options['pass_value'] = [
-                            st.sidebar.number_input('bandpass value 1',
-                                                    min_value=1,
-                                                    max_value=int(sfreq/2-1),
-                                                    step=1,
-                                                    value=10,
-                                                    ),
-                            st.sidebar.number_input('bandpass value 2',
-                                                    min_value=1,
-                                                    max_value=int(sfreq/2-1),
-                                                    step=1,
-                                                    value=450,
+uploaded_file = st.file_uploader("upload export file", accept_multiple_files=False)
+plot_container_1 = st.empty()
+# options_container.write(Options)
+# Parameters = {}
+# Parameters['AIF']=pd.DataFrame()
+# Parameters['MDF']=pd.DataFrame()
+# Parameters['MNF']=pd.DataFrame()
+if uploaded_file is not None:
+    file_name = uploaded_file.name# file_name = 'M1.csv'
+    # st.write('running import_raw_EMG')
+    df_raw, time_raw, sfreq = import_raw_EMG(uploaded_file,
+                                             export_style=Options['export_style'],
+                                             )
+    if Options['show_processing_plots']:
+        plot_container_1.plotly_chart(plot_raw(df_raw, time_raw))
+    duration = time_raw.max()
+    selected_channels = {}
+    for c,ch in enumerate([c for c in df_raw.columns if 'Frame' not in c]):
+        selected_channels[ch] = st.sidebar.checkbox(ch,
+                                                    # value=True,
+                                                    value=True if 'Knee' not in ch and c<2 else False,
+                                                    key=ch,
                                                     )
-                            ]# Options['pass_value']=[10,450] 
-                    df_filter = filter_emg(df_crop, sfreq, Options,
-                                           rectify=True,
-                                           band_pass=Options['pass_value'],
-                                           )
-                # options_container.write(Options)
-                if Options['show_intermediate_plots']:
-                    plot_containers[file_name].plotly_chart(plot_filter(df_raw, df_crop, df_filter, Options))
-                # fig_filter = plot_filter(df_raw, df_crop, df_filter, Options)
-                # fig_filter.write_image(os.path.join(os.getcwd(), 'plots', 'fig_filter.png'))
-                if df_filter is not None:
-                    if f_nr==0:
-                        Options['epoch'] = st.sidebar.number_input('epoch (s)',
-                                                                   value=0.5,
-                                                                   step=0.1
-                                                                   )# Options['epoch']=0.5
-                    aif_parameters, fig_aif = get_avg_inst_freq(df_filter,
-                                                                sfreq,
-                                                                Options,
-                                                                file_name=file_name,
+    Options['selected_channels'] = [k for k in selected_channels.keys() if selected_channels[k]==True]
+    Options['crop_method'] = st.sidebar.selectbox('crop method', [
+        '',
+        'auto',
+        'manual',
+        ],
+        1,# Options['crop_method'] = 'auto'
+        # 0,
+        )
+    # options_container.write(Options)
+    if Options['crop_method'] == 'manual':
+        Options['crop_window'] = [
+            st.sidebar.number_input('crop window on (s)',
+                                    min_value=0.0,
+                                    max_value=time_raw.max()-Options['trial_duration'],
+                                    step=1.0,
+                                    value=0.0,
+                                    ),
+                                  ]
+        Options['crop_window'].append(Options['crop_window'][0] + Options['trial_duration'])
+    if Options['crop_method'] != '' and Options['trial_duration'] <= duration:
+        # st.write('running crop_EMG')
+        df_crop, Options['crop_window'] = crop_EMG(df_raw=df_raw,
+                                                   trial_duration=Options['trial_duration'],
+                                                   sfreq=sfreq,
+                                                   Options=Options,
+                                                   )
+        # st.write('running plot_cropped')
+        # fig_crop = plot_cropped(df_raw, df_crop, Options)
+        if Options['show_processing_plots']:
+            plot_container_1.plotly_chart(plot_cropped(df_raw, df_crop, Options))
+        Options['filter_type'] = st.sidebar.selectbox('filter type', [
+            '',
+            'low pass',
+            'high pass',
+            'band pass',
+            'moving average',
+            ],
+            # 0,
+            3,# Options['filter_type']='band_pass'
+            )
+        # options_container.write(Options)
+        if Options['filter_type'] != '':
+            if Options['filter_type']=='low pass':
+                Options['pass_value'] = st.sidebar.number_input('lowpass value',
+                                                                min_value=1,
+                                                                max_value=int(sfreq/2-1),
+                                                                step=50,
+                                                                value=450,
                                                                 )
-                    data_so_far()['AIF'].append(aif_parameters.to_dict(orient='records')[0])
-                    mdf_parameters, fig_mdf = get_median_freq(df_filter,
-                                                              sfreq,
-                                                              Options,
-                                                              file_name=file_name,
-                                                              )
-                    data_so_far()['MDF'].append(mdf_parameters.to_dict(orient='records')[0])
-                    mnf_parameters, fig_mnf = get_mean_freq(df_filter,
+                df_filter = filter_emg(df_crop, sfreq, Options,
+                                       rectify=True,
+                                       low_pass=Options['pass_value'],
+                                       )
+            elif Options['filter_type']=='high pass':
+                Options['pass_value'] = st.sidebar.number_input('highpass value',
+                                                                min_value=1,
+                                                                max_value=int(sfreq/2-1),
+                                                                step=10,
+                                                                value=10,
+                                                                )
+                df_filter = filter_emg(df_crop, sfreq, Options,
+                                       rectify=True,
+                                       high_pass=Options['pass_value'],
+                                       )
+            elif Options['filter_type']=='band pass':
+                Options['pass_value'] = [
+                    st.sidebar.number_input('bandpass value 1',
+                                            min_value=1,
+                                            max_value=int(sfreq/2-1),
+                                            step=1,
+                                            value=10,
+                                            ),
+                    st.sidebar.number_input('bandpass value 2',
+                                            min_value=1,
+                                            max_value=int(sfreq/2-1),
+                                            step=1,
+                                            value=450,
+                                            )
+                    ]# Options['pass_value']=[10,450] 
+                df_filter = filter_emg(df_crop, sfreq, Options,
+                                       rectify=True,
+                                       band_pass=Options['pass_value'],
+                                       )
+            # options_container.write(Options)
+            if Options['show_processing_plots']:
+                plot_container_1.plotly_chart(plot_filter(df_raw, df_crop, df_filter, Options))
+            # fig_filter = plot_filter(df_raw, df_crop, df_filter, Options)
+            # fig_filter.write_image(os.path.join(os.getcwd(), 'plots', 'fig_filter.png'))
+            if df_filter is not None:
+                Options['epoch'] = st.sidebar.number_input('epoch (s)',
+                                                           value=0.5)# Options['epoch']=0.5
+                # options_container.write(Options)
+                aif_parameters, fig_aif = get_avg_inst_freq(df_filter,
                                                             sfreq,
                                                             Options,
                                                             file_name=file_name,
                                                             )
-                    data_so_far()['MNF'].append(mnf_parameters.to_dict(orient='records')[0])
+                data_so_far()['AIF'].append(aif_parameters.to_dict(orient='records')[0])
+                # st.write('AIF')
+                # st.pyplot(fig_aif)
+                mdf_parameters, fig_mdf = get_median_freq(df_filter,
+                                                          sfreq,
+                                                          Options,
+                                                          file_name=file_name,
+                                                          )
+                data_so_far()['MDF'].append(mdf_parameters.to_dict(orient='records')[0])
+                # st.write('MDF')
+                # st.pyplot(fig_mdf)
+                mnf_parameters, fig_mnf = get_mean_freq(df_filter,
+                                                        sfreq,
+                                                        Options,
+                                                        file_name=file_name,
+                                                        )
+                data_so_far()['MNF'].append(mnf_parameters.to_dict(orient='records')[0])
+                # st.write('MNF')
+                # st.pyplot(fig_mnf)
+                
+                # st.write('dataframes in local variables')
+                # st.write('Parameters' in locals())
+                # st.write('dataframes in global variables')
+                # st.write('Parameters' in globals())
+                file_names_so_far().append(file_name)
+                # st.write(file_names_so_far())
+                # st.write(data_so_far())
+                # st.write(pd.DataFrame.from_dict(data_so_far()['AIF']))
+                Parameters = {
+                    'AIF': pd.DataFrame.from_dict(data_so_far()['AIF']),
+                    'MDF': pd.DataFrame.from_dict(data_so_far()['MDF']),
+                    'MNF': pd.DataFrame.from_dict(data_so_far()['MNF']),
+                    }
+                for k in Parameters.keys():
+                    Parameters[k].insert(0, 'file_name', file_names_so_far())
+                    Parameters[k] = Parameters[k].set_index('file_name')
                     
-                    file_names_so_far().append(file_name)
-                    # st.write(file_names_so_far())
-                    # st.write(data_so_far())
-                    # st.write(pd.DataFrame.from_dict(data_so_far()['AIF']))
-                    Parameters = {
-                        'AIF': pd.DataFrame.from_dict(data_so_far()['AIF']),
-                        'MDF': pd.DataFrame.from_dict(data_so_far()['MDF']),
-                        'MNF': pd.DataFrame.from_dict(data_so_far()['MNF']),
-                        }
-                    for k in Parameters.keys():
-                        Parameters[k].insert(0, 'file_name', file_names_so_far())
-                        Parameters[k] = Parameters[k].set_index('file_name')
-                        
-                    Parameters['all'] = pd.concat(
-                        (
-                            Parameters['AIF'].rename(
-                                columns=dict(zip(Parameters['AIF'].columns,[c+'_AIF' for c in Parameters['AIF'].columns]))
-                                ),
-                            Parameters['MDF'].rename(
-                                columns=dict(zip(Parameters['MDF'].columns,[c+'_MDF' for c in Parameters['MDF'].columns]))
-                                ),
-                            Parameters['MNF'].rename(
-                                columns=dict(zip(Parameters['MNF'].columns,[c+'_MNF' for c in Parameters['MNF'].columns]))
-                                ),
+                Parameters['all'] = pd.concat(
+                    (
+                        Parameters['AIF'].rename(
+                            columns=dict(zip(Parameters['AIF'].columns,[c+'_AIF' for c in Parameters['AIF'].columns]))
                             ),
-                        axis=1
-                        )
-                    with plot_containers[file_name]:
-                        if Options['show_final_plots']:
-                            st.subheader('AIF')
-                            st.plotly_chart(fig_aif)
-                            st.subheader('MDF')
-                            st.plotly_chart(fig_mdf)
-                            st.subheader('MNF')
-                            st.plotly_chart(fig_mnf)
-                    if f_nr+1==len(uploaded_files):
-                        if Options['show_table']:
-                            st.subheader('Results')
-                            # st.write(Parameters['all'])
-                            st.dataframe(Parameters['all'].sort_index())
-                        st.markdown(generate_excel(Parameters), unsafe_allow_html=True)
+                        Parameters['MDF'].rename(
+                            columns=dict(zip(Parameters['MDF'].columns,[c+'_MDF' for c in Parameters['MDF'].columns]))
+                            ),
+                        Parameters['MNF'].rename(
+                            columns=dict(zip(Parameters['MNF'].columns,[c+'_MNF' for c in Parameters['MNF'].columns]))
+                            ),
+                        ),
+                    axis=1
+                    )
+                # st.write('AIF')
+                # st.write(Parameters['AIF'])
+                # st.write('MDF')
+                # st.write(Parameters['MDF'])
+                # st.write('MNF')
+                # st.write(Parameters['MNF'])
+                st.markdown(generate_excel(Parameters), unsafe_allow_html=True)
+                if Options['show_final_plots']:
+                    st.write('AIF')
+                    # st.pyplot(fig_aif)
+                    st.plotly_chart(fig_aif)
+                    st.write('MDF')
+                    # st.pyplot(fig_mdf)
+                    st.plotly_chart(fig_mdf)
+                    st.write('MNF')
+                    # st.pyplot(fig_mnf)
+                    st.plotly_chart(fig_mnf)
+                if Options['show_table']:
+                    st.write(Parameters['all'])
                 # with open(os.path.join(os.getcwd(),'saved_variables','data_so_far.json'), 'w') as fp:
                 #     json.dump(data_so_far(), fp)
     # # with uploaded_file as f:#for f in uploaded_files:
@@ -1062,5 +1115,4 @@ if uploaded_files is not None:
     #     json.dump(Options, fp)
     # with open(os.path.join(os.getcwd(),'saved_variables','sfreq.json'), 'w') as fp:
     #     json.dump(sfreq, fp)
-
 
