@@ -844,12 +844,11 @@ def generate_excel(Parameters, drop_duplicates=True):
                 Parameters[k].drop_duplicates().sort_index().to_excel(writer, sheet_name=k, index=True)
             else:
                 Parameters[k].sort_index().to_excel(writer, sheet_name=k, index=True)
-            # workbook = writer.book
-            # worksheet = writer.sheets[k]
-            # worksheet.set_column('A:A', 30)
-            # worksheet.set_column('B:Z', 18)
-            writer.sheets[k].set_column('A:A', 30)
-            writer.sheets[k].set_column('B:Z', 18)
+            try:
+                writer.sheets[k].set_column('A:A', 30)
+                writer.sheets[k].set_column('B:Z', 18)
+            except:
+                pass
         writer.save()
         processed_data = output.getvalue()
         
