@@ -782,8 +782,8 @@ def generate_excel(Parameters, drop_duplicates=True):
             # workbook = writer.book
             worksheet = writer.sheets[k]
             # fmt_thousendth = workbook.add_format({'num_format': '#.###'})
-            worksheet.set_column('A:A', 30)
-            worksheet.set_column('B:Z', 18)
+            # worksheet.set_column('A:A', 30)
+            # worksheet.set_column('B:Z', 18)
         # if Options['all_oneLiners']:
         #     for exercise in oneLiners.keys():# exercise = list(oneLiners.keys())[0]
         #         for entry_type in oneLiners[exercise].keys():# entry_type = list(oneLiners[exercise].keys())[0]
