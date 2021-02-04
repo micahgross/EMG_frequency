@@ -24,10 +24,7 @@ from plotly.subplots import make_subplots
 from scipy import signal
 from scipy import stats
 from scipy import integrate
-# from scipy.signal import periodogram
-# from scipy.integrate import cumtrapz
 from streamlit.report_thread import get_report_ctx
-# import winsound
 #%%
 # '''
 # with open(os.path.join(os.getcwd(),'saved_variables','sample_file_bytesIO.txt'), 'rb') as fh:
@@ -66,7 +63,6 @@ def user_input_options():
 @st.cache(suppress_st_warning=True)
 def clear_cache_if(session_id):
     st.caching.clear_cache()
-    # winsound.Beep(800, 250)
 
 @st.cache
 def import_raw_EMG(uploaded_file,export_style='nexus'):# uploaded_file=os.path.join(os.getcwd(),'sample_data', 'gooddata_1766_M01.csv') # uploaded_file=os.path.join(os.getcwd(),'sample_data', 'M1.csv')
@@ -92,7 +88,6 @@ def plot_raw(df_raw, time_raw):
         rows=len([c for c in df_raw.columns if 'Frame' not in c]),
         cols=1,
         shared_xaxes=True,
-        # row_titles=['channel: '+c for c in df_raw.columns if 'Frame' not in c],
         subplot_titles=tuple(['channel: '+c for c in df_raw.columns if 'Frame' not in c]),
         )
     for c,ch in enumerate([c for c in df_raw.columns if 'Frame' not in c]):# c,ch=0,[c for c in df_raw.columns if 'Frame' not in c][0]
@@ -142,7 +137,6 @@ def plot_cropped(df_raw, df_crop, Options):
         rows=len(Options['selected_channels']),# len([c for c in df_raw.columns if 'Frame' not in c]),
         cols=1,
         shared_xaxes=True,
-        # row_titles=['channel: '+x for x in Options['selected_channels']],
         subplot_titles=tuple(['channel: '+x for x in Options['selected_channels']]),
         )
     for c,ch in enumerate(Options['selected_channels']):# enumerate([c for c in df_raw.columns if 'Frame' not in c]):# c,ch=0,[c for c in df_raw.columns if 'Frame' not in c][0]
@@ -205,8 +199,6 @@ def filter_emg(df_crop, sfreq, Options, rectify=True, **kwargs):# [,sfreq,plots]
     order = kwargs.get('filter_order',3)# order = 3
     moving_avg_window = kwargs.get('moving_avg_window', 0.05)# moving_avg_window = 0.05
     if 'band_pass' in kwargs:
-        # high_band = band_pass[0]/(sfreq/2)
-        # low_band = band_pass[1]/(sfreq/2)
         band_pass = [x/(sfreq/2) for x in band_pass]
     if 'low_pass' in kwargs:
         low_pass = low_pass/sfreq
@@ -255,7 +247,6 @@ def plot_filter(df_raw, df_crop, df_filter, Options):
         rows=len(Options['selected_channels']),
         cols=1,
         shared_xaxes=True,
-        # row_titles=['channel: '+x for x in Options['selected_channels']],
         subplot_titles=tuple(['channel: '+x for x in Options['selected_channels']]),
         )
     for c,ch in enumerate(Options['selected_channels']):
@@ -854,9 +845,11 @@ def generate_excel(Parameters, drop_duplicates=True):
             else:
                 Parameters[k].sort_index().to_excel(writer, sheet_name=k, index=True)
             # workbook = writer.book
-            worksheet = writer.sheets[k]
-            worksheet.set_column('A:A', 30)
-            worksheet.set_column('B:Z', 18)
+            # worksheet = writer.sheets[k]
+            # worksheet.set_column('A:A', 30)
+            # worksheet.set_column('B:Z', 18)
+            writer.sheets[k].set_column('A:A', 30)
+            writer.sheets[k].set_column('B:Z', 18)
         writer.save()
         processed_data = output.getvalue()
         
