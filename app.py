@@ -49,7 +49,7 @@ def user_input_options():
                                                 value=False
                                                 )
     Options['show_table'] = st.sidebar.checkbox('show table',
-                                                value=False
+                                                value=True
                                                 )
     Options['export_style'] = st.sidebar.selectbox('export style', [
         'nexus',
