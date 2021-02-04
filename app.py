@@ -854,9 +854,9 @@ def generate_excel(Parameters, drop_duplicates=True):
         
     b64 = base64.b64encode(processed_data)
     writing_excel_container.empty()
-    # return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="Results.xlsx">Download Results as Excel File</a>' # decode b'abc' => abc
+    return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="Results.xlsx">Download Results as Excel File</a>' # decode b'abc' => abc
     # return f'<a href="data:file/txt;base64,{b64}" download="{download_filename}"><input type="button" value="Download"></a>'
-    return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="Results.xlsx"><input type="button" value="Download"></a>'
+    # return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="Results.xlsx"><input type="button" value="Download"></a>'
 #%%
 st.write("""
 
