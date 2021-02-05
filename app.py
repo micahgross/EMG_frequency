@@ -822,61 +822,48 @@ def file_names_so_far():
 
 def generate_excel(Parameters, drop_duplicates=True):
     # thanks to https://discuss.streamlit.io/t/how-to-download-file-in-streamlit/1806/12
-    # writing_excel_container = st.empty()
-    # writing_excel_container.text('writing to excel')
     output = BytesIO()
     
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         # for k in Parameters.keys():# exercise = list(Results_parameters.keys())[0]
         for k in ['all'] + [x for x in list(Parameters.keys()) if x!='all']:# exercise = list(Results_parameters.keys())[0]
-            # if drop_duplicates:
-            #     Parameters[k].drop_duplicates().sort_index().to_excel(writer, sheet_name=k, index=True)
-            # else:
-            #     Parameters[k].sort_index().to_excel(writer, sheet_name=k, index=True)
             if drop_duplicates:
-                Parameters[k].drop_duplicates().to_excel(writer, sheet_name=k, index=True)
+                Parameters[k].drop_duplicates().sort_index().to_excel(writer, sheet_name=k, index=True)
             else:
-                Parameters[k].to_excel(writer, sheet_name=k, index=True)
-            # try:
+                Parameters[k].sort_index().to_excel(writer, sheet_name=k, index=True)
             writer.sheets[k].set_column('A:A', 30)
             writer.sheets[k].set_column('B:Z', 18)
-            # except:
-            #     pass
         writer.save()
         processed_data = output.getvalue()
         
     b64 = base64.b64encode(processed_data)
-    # writing_excel_container.empty()
-    return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="frequency_results.xlsx">Download results Excel file</a>' # decode b'abc' => abc
     # return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="{download_filename}">Download results Excel file</a>' # decode b'abc' => abc
+    return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="frequency_results.xlsx">Download results Excel file</a>' # decode b'abc' => abc
     # return f'<a href="data:file/txt;base64,{b64}" download="{download_filename}"><input type="button" value="Download"></a>'
-    # return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="Results.xlsx"><input type="button" value="Download"></a>'
 
-def to_excel(df):
-    output = BytesIO()
-    writer = pd.ExcelWriter(output, engine='xlsxwriter')
-    df.to_excel(writer, sheet_name='Sheet1')
-    writer.save()
-    processed_data = output.getvalue()
-    return processed_data
+# def to_excel(df):
+#     output = BytesIO()
+#     writer = pd.ExcelWriter(output, engine='xlsxwriter')
+#     df.to_excel(writer, sheet_name='Sheet1')
+#     writer.save()
+#     processed_data = output.getvalue()
+#     return processed_data
 
-def get_table_download_link(df):
-    """Generates a link allowing the data in a given panda dataframe to be downloaded
-    in:  dataframe
-    out: href string
-    """
-    val = to_excel(df)
-    b64 = base64.b64encode(val)  # val looks like b'...'
-    return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="extract.xlsx">Download csv file</a>' # decode b'abc' => abc
+# def get_table_download_link(df):
+#     """Generates a link allowing the data in a given panda dataframe to be downloaded
+#     in:  dataframe
+#     out: href string
+#     """
+#     val = to_excel(df)
+#     b64 = base64.b64encode(val)  # val looks like b'...'
+#     return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="extract.xlsx">Download csv file</a>' # decode b'abc' => abc
+# st.markdown(get_table_download_link(df=Parameters['all']), unsafe_allow_html=True)
 #%%
 st.write("""
 
 # EMG frequency analysis
 
 """)
-# st.write(
-#     get_report_ctx()
-#     )
 ctx =  get_report_ctx()
 # st.write(
 #     ctx.session_id
@@ -1061,10 +1048,11 @@ if uploaded_files is not None:
                             # st.write(Parameters['all'])
                             st.dataframe(Parameters['all'].sort_index())
                         # writing_excel_container = st.empty()
-                        with st.spinner(text='writing to excel'):
-                            st.markdown(generate_excel(Parameters), unsafe_allow_html=True)
+                        # with st.spinner(text='writing to excel'):
+                        #     st.markdown(generate_excel(Parameters), unsafe_allow_html=True)
+                        st.markdown(generate_excel(Parameters), unsafe_allow_html=True)
                         # st.success('Done!')
-                        st.markdown(get_table_download_link(df=Parameters['all']), unsafe_allow_html=True)
+                        # st.markdown(get_table_download_link(df=Parameters['all']), unsafe_allow_html=True)
                 # with open(os.path.join(os.getcwd(),'saved_variables','data_so_far.json'), 'w') as fp:
                 #     json.dump(data_so_far(), fp)
     # # with uploaded_file as f:#for f in uploaded_files:
