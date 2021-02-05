@@ -851,6 +851,23 @@ def generate_excel(Parameters, drop_duplicates=True):
     # return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="{download_filename}">Download results Excel file</a>' # decode b'abc' => abc
     # return f'<a href="data:file/txt;base64,{b64}" download="{download_filename}"><input type="button" value="Download"></a>'
     # return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="Results.xlsx"><input type="button" value="Download"></a>'
+
+def to_excel(df):
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df.to_excel(writer, sheet_name='Sheet1')
+    writer.save()
+    processed_data = output.getvalue()
+    return processed_data
+
+def get_table_download_link(df):
+    """Generates a link allowing the data in a given panda dataframe to be downloaded
+    in:  dataframe
+    out: href string
+    """
+    val = to_excel(df)
+    b64 = base64.b64encode(val)  # val looks like b'...'
+    return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="extract.xlsx">Download csv file</a>' # decode b'abc' => abc
 #%%
 st.write("""
 
@@ -1047,6 +1064,7 @@ if uploaded_files is not None:
                         with st.spinner(text='writing to excel'):
                             st.markdown(generate_excel(Parameters), unsafe_allow_html=True)
                         # st.success('Done!')
+                        st.markdown(get_table_download_link(df=Parameters['all']), unsafe_allow_html=True)
                 # with open(os.path.join(os.getcwd(),'saved_variables','data_so_far.json'), 'w') as fp:
                 #     json.dump(data_so_far(), fp)
     # # with uploaded_file as f:#for f in uploaded_files:
