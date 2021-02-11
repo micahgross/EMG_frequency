@@ -445,6 +445,7 @@ def get_avg_inst_freq(df_filter, sfreq, Options, **kwargs):# [trial_duration,sfr
             col=2)
         # fig_aif.show()
 
+        aif_parameters.loc[0,'intercept_'+ch] = intercept
         aif_parameters.loc[0,'slope_'+ch] = slope
         aif_parameters.loc[0,'slope_norm_'+ch] = slope_norm
         dFreq_pct = ((t_epoch[ch][-1]*slope_norm + intercept_norm)/(t_epoch[ch][0]*slope_norm + intercept_norm)-1)*100# total percent change in AIF over 'trial_duration'
@@ -622,10 +623,11 @@ def get_median_freq(df_filter, sfreq, Options, **kwargs):
             col=2)
         # fig_mdf.show()
 
-        mdf_parameters.loc[0,'slope_'+ch]=slope
-        mdf_parameters.loc[0,'slope_norm_'+ch]=slope_norm
-        dFreq_pct=((t_epoch[ch][-1]*slope_norm + intercept_norm)/(t_epoch[ch][0]*slope_norm + intercept_norm)-1)*100# total percent change in MDF over 'trial_duration'
-        mdf_parameters.loc[0,'dFreq_pct_'+ch]=dFreq_pct
+        mdf_parameters.loc[0,'intercept_'+ch] = intercept
+        mdf_parameters.loc[0,'slope_'+ch] = slope
+        mdf_parameters.loc[0,'slope_norm_'+ch] = slope_norm
+        dFreq_pct = ((t_epoch[ch][-1]*slope_norm + intercept_norm)/(t_epoch[ch][0]*slope_norm + intercept_norm)-1)*100# total percent change in MDF over 'trial_duration'
+        mdf_parameters.loc[0,'dFreq_pct_'+ch] = dFreq_pct
     fig_mdf.update_xaxes(
         title_text='time (s)',
         row=c+1,
@@ -793,10 +795,11 @@ def get_mean_freq(df_filter, sfreq, Options, **kwargs):
             col=2)
         # fig_mnf.show()
 
-        mnf_parameters.loc[0,'slope_'+ch]=slope
-        mnf_parameters.loc[0,'slope_norm_'+ch]=slope_norm
-        dFreq_pct=((t_epoch[ch][-1]*slope_norm + intercept_norm)/(t_epoch[ch][0]*slope_norm + intercept_norm)-1)*100# total percent change in MNF over 'trial_duration'
-        mnf_parameters.loc[0,'dFreq_pct_'+ch]=dFreq_pct
+        mnf_parameters.loc[0,'intercept_'+ch] = intercept
+        mnf_parameters.loc[0,'slope_'+ch] = slope
+        mnf_parameters.loc[0,'slope_norm_'+ch] = slope_norm
+        dFreq_pct = ((t_epoch[ch][-1]*slope_norm + intercept_norm)/(t_epoch[ch][0]*slope_norm + intercept_norm)-1)*100# total percent change in MNF over 'trial_duration'
+        mnf_parameters.loc[0,'dFreq_pct_'+ch] = dFreq_pct
     fig_mnf.update_xaxes(
         title_text='time (s)',
         row=c+1,
