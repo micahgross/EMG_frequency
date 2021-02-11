@@ -21,7 +21,8 @@ import base64
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from scipy import signal
+# from scipy import signal
+from scipy.signal import butter, filtfilt, hilbert, periodogram
 from scipy import stats
 from scipy import integrate
 from streamlit.report_thread import get_report_ctx
@@ -29,12 +30,17 @@ from streamlit.report_thread import get_report_ctx
 # '''
 # with open(os.path.join(os.getcwd(),'saved_variables','sample_file_bytesIO.txt'), 'rb') as fh:
 #     uploaded_file = BytesIO(fh.read())
+# with open(os.path.join(os.getcwd(),'saved_variables','file_name.json'), 'r') as fp:
+#     file_name = json.load(fp)
 # with open(os.path.join(os.getcwd(),'saved_variables','Options.json'), 'r') as fp:
 #     Options = json.load(fp)
 # with open(os.path.join(os.getcwd(),'saved_variables','sfreq.json'), 'r') as fp:
 #     sfreq = json.load(fp)
 # with open(os.path.join(os.getcwd(),'saved_variables','data_so_far.json'), 'r') as fp:
 #     data_so_far = json.load(fp)
+# with open(os.path.join(os.getcwd(),'saved_variables','df_filter.json'), 'r') as fp:
+#     df_filter = json.load(fp)
+# df_filter = pd.read_json(df_filter, orient='index')
 # del fp, fh
 # '''
 
@@ -215,18 +221,24 @@ def filter_emg(df_crop, sfreq, Options, rectify=True, **kwargs):# [,sfreq,plots]
         # normalise cut-off frequencies to sampling frequency
         if 'band_pass' in kwargs:
             # create band-pass filter for EMG
-            b1, a1 = signal.butter(order, band_pass, btype='bandpass')
+            # b1, a1 = signal.butter(order, band_pass, btype='bandpass')
+            b1, a1 = butter(order, band_pass, btype='bandpass')
             # process EMG signal: filter EMG
-            emg_sig = signal.filtfilt(b1, a1, emg_sig)
+            # emg_sig = signal.filtfilt(b1, a1, emg_sig)
+            emg_sig = filtfilt(b1, a1, emg_sig)
             
         # create lowpass and/or highpass filter and apply to rectified signal to get EMG envelope
         if 'low_pass' in kwargs:
-            b2, a2 = signal.butter(order, low_pass, btype='lowpass')
-            emg_sig = signal.filtfilt(b2, a2, emg_sig)
+            # b2, a2 = signal.butter(order, low_pass, btype='lowpass')
+            # emg_sig = signal.filtfilt(b2, a2, emg_sig)
+            b2, a2 = butter(order, low_pass, btype='lowpass')
+            emg_sig = filtfilt(b2, a2, emg_sig)
         
         if 'high_pass' in kwargs:
-            b2, a2 = signal.butter(order, high_pass, btype='highpass')
-            emg_sig = signal.filtfilt(b2, a2, emg_sig)
+            # b2, a2 = signal.butter(order, high_pass, btype='highpass')
+            # emg_sig = signal.filtfilt(b2, a2, emg_sig)
+            b2, a2 = butter(order, high_pass, btype='highpass')
+            emg_sig = filtfilt(b2, a2, emg_sig)
         
         emg_sig = pd.Series(emg_sig)
         # process EMG signal: rectify
@@ -335,7 +347,8 @@ def get_avg_inst_freq(df_filter, sfreq, Options, **kwargs):# [trial_duration,sfr
     t_epoch = {}
     for c,ch in enumerate(Options['selected_channels']):# c,ch = 0,Options['selected_channels'][0] # c,ch = c+1,Options['selected_channels'][c+1]
         emg_sig = np.array(df_filter[ch])
-        analytic_signal = signal.hilbert(emg_sig)
+        # analytic_signal = signal.hilbert(emg_sig)
+        analytic_signal = hilbert(emg_sig)
         instantaneous_phase = np.unwrap(np.angle(analytic_signal))
         instantaneous_frequency = (np.diff(instantaneous_phase) /
                                    (2.0*np.pi) * sfreq)
@@ -507,7 +520,8 @@ def get_median_freq(df_filter, sfreq, Options, **kwargs):
             # t_epoch[ch] += [central_point / sfreq]
             t_epoch[ch][i] = central_point / sfreq
             # Processing window power spectrum (PSD) generation
-            f, Pxx_den = signal.periodogram(np.array(processing_window), fs=float(sfreq))# plot_freq_spectrum(f, Pxx_den)
+            # f, Pxx_den = signal.periodogram(np.array(processing_window), fs=float(sfreq))# plot_freq_spectrum(f, Pxx_den)
+            f, Pxx_den = periodogram(np.array(processing_window), fs=float(sfreq))# plot_freq_spectrum(f, Pxx_den)
             # Median power frequency determination
             area_freq = integrate.cumtrapz(Pxx_den, f, initial=0)
             total_power = area_freq[-1]
@@ -680,7 +694,8 @@ def get_mean_freq(df_filter, sfreq, Options, **kwargs):
             # t_epoch[ch] += [central_point / sfreq]
             t_epoch[ch][i] = central_point / sfreq
             # Processing window power spectrum (PSD) generation
-            f, Pxx_den = signal.periodogram(np.array(processing_window), fs=float(sfreq))# plot_freq_spectrum(f, Pxx_den)
+            # f, Pxx_den = signal.periodogram(np.array(processing_window), fs=float(sfreq))# plot_freq_spectrum(f, Pxx_den)
+            f, Pxx_den = periodogram(np.array(processing_window), fs=float(sfreq))# plot_freq_spectrum(f, Pxx_den)
             Pxx_den = np.reshape(Pxx_den, (1,-1))
             width = np.tile(f[1]-f[0], (1, Pxx_den.shape[1]))
             f = np.reshape(f, (1,-1))
@@ -966,6 +981,9 @@ if uploaded_files is not None:
                     # 0,
                     3,# Options['filter_type']='band_pass'
                     )
+                Options['rectify'] = st.sidebar.checkbox('rectify',
+                                                             value=False
+                                                             )
             if Options['filter_type'] != '':
                 if Options['filter_type']=='low pass':
                     if f_nr==0:
@@ -976,7 +994,7 @@ if uploaded_files is not None:
                                                                         value=450,
                                                                         )
                     df_filter = filter_emg(df_crop, sfreq, Options,
-                                           rectify=True,
+                                           rectify=Options['rectify'],
                                            low_pass=Options['pass_value'],
                                            )
                 elif Options['filter_type']=='high pass':
@@ -988,7 +1006,7 @@ if uploaded_files is not None:
                                                                         value=10,
                                                                         )
                     df_filter = filter_emg(df_crop, sfreq, Options,
-                                           rectify=True,
+                                           rectify=Options['rectify'],
                                            high_pass=Options['pass_value'],
                                            )
                 elif Options['filter_type']=='band pass':
@@ -1008,7 +1026,7 @@ if uploaded_files is not None:
                                                     )
                             ]# Options['pass_value']=[10,450] 
                     df_filter = filter_emg(df_crop, sfreq, Options,
-                                           rectify=True,
+                                           rectify=Options['rectify'],
                                            band_pass=Options['pass_value'],
                                            )
                 # options_container.write(Options)
@@ -1017,6 +1035,10 @@ if uploaded_files is not None:
                 # fig_filter = plot_filter(df_raw, df_crop, df_filter, Options)
                 # fig_filter.write_image(os.path.join(os.getcwd(), 'plots', 'fig_filter.png'))
                 if df_filter is not None:
+                    # with open(os.path.join(os.getcwd(),'saved_variables','df_filter.json'), 'w') as fp:
+                    #     json.dump(df_filter.to_json(orient='index'), fp)
+                    # with open(os.path.join(os.getcwd(),'saved_variables','file_name.json'), 'w') as fp:
+                    #     json.dump(file_name, fp)
                     if f_nr==0:
                         Options['epoch'] = st.sidebar.number_input('epoch (s)',
                                                                    value=0.5,
@@ -1095,8 +1117,8 @@ if uploaded_files is not None:
     # #         fp.write(f.getbuffer())
     # with open(os.path.join(os.getcwd(),'saved_variables','sample_file_bytesIO.txt'), 'wb') as fp:
     #     fp.write(uploaded_file.getbuffer())
-    # with open(os.path.join(os.getcwd(),'saved_variables','Options.json'), 'w') as fp:
-    #     json.dump(Options, fp)
+                    # with open(os.path.join(os.getcwd(),'saved_variables','Options.json'), 'w') as fp:
+                    #     json.dump(Options, fp)
     # with open(os.path.join(os.getcwd(),'saved_variables','sfreq.json'), 'w') as fp:
     #     json.dump(sfreq, fp)
 
